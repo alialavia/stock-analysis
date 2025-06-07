@@ -31,7 +31,7 @@ st.markdown("---")
 st.sidebar.title("Navigation")
 page = st.sidebar.selectbox(
     "Choose Analysis Type",
-    ["Single Stock Analysis", "Stock Comparison", "Technical Analysis"]
+    ["Single Stock Analysis", "Stock Comparison", "Technical Analysis", "Options Analysis"]
 )
 
 st.sidebar.markdown("---")
@@ -184,17 +184,14 @@ if page == "Single Stock Analysis":
                     )
                 
                 with col2:
-                    # Convert to Excel
-                    output = io.BytesIO()
-                    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                        stock_data.to_excel(writer, sheet_name='Stock Data')
-                    excel_data = output.getvalue()
+                    # Convert to Excel (simplified to avoid timezone issues)
+                    csv_data = stock_data.to_csv()
                     
                     st.download_button(
-                        label="Download Excel",
-                        data=excel_data,
-                        file_name=f"{ticker.upper()}_{period}_data.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                        label="Download Excel (CSV)",
+                        data=csv_data,
+                        file_name=f"{ticker.upper()}_{period}_data.csv",
+                        mime="text/csv"
                     )
                 
             else:
@@ -421,6 +418,157 @@ elif page == "Technical Analysis":
                 
             else:
                 st.error(f"❌ Could not fetch data for ticker '{ticker.upper()}'. Please check if the ticker symbol is valid.")
+
+# Options Analysis Page
+elif page == "Options Analysis":
+    st.header("📊 Options Analysis")
+    
+    # Stock input for options analysis
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        ticker = st.text_input("Enter Stock Ticker Symbol", value="AAPL", key="options_ticker")
+    
+    with col2:
+        analysis_type = st.selectbox(
+            "Analysis Type",
+            ["Open Interest Value", "Detailed Options Chain"],
+            key="options_analysis_type"
+        )
+    
+    if ticker:
+        with st.spinner(f"Fetching options data for {ticker.upper()}..."):
+            # Get options data
+            options_data = st.session_state.analyzer.get_options_data(ticker)
+            
+            if options_data and 'expiry_dates' in options_data:
+                # Calculate interest values
+                interest_values = st.session_state.analyzer.calculate_options_interest_value(options_data)
+                
+                if interest_values:
+                    if analysis_type == "Open Interest Value":
+                        st.subheader("📈 Open Interest × Last Price by Expiry Date")
+                        
+                        # Create tabs for calls and puts
+                        tab1, tab2 = st.tabs(["📞 Calls", "📉 Puts"])
+                        
+                        with tab1:
+                            if isinstance(interest_values['calls_summary'], pd.DataFrame) and not interest_values['calls_summary'].empty:
+                                # Create chart for calls
+                                fig_calls = go.Figure()
+                                
+                                fig_calls.add_trace(go.Bar(
+                                    x=interest_values['calls_summary']['expiry'],
+                                    y=interest_values['calls_summary']['total_interest_value'],
+                                    name='Calls Interest Value',
+                                    marker_color='green',
+                                    hovertemplate='<b>Expiry:</b> %{x}<br><b>Total Interest Value:</b> $%{y:,.0f}<extra></extra>'
+                                ))
+                                
+                                fig_calls.update_layout(
+                                    title='Calls: Open Interest × Last Price by Expiry',
+                                    xaxis_title='Expiry Date',
+                                    yaxis_title='Total Interest Value ($)',
+                                    height=400
+                                )
+                                
+                                st.plotly_chart(fig_calls, use_container_width=True)
+                                
+                                # Summary table for calls
+                                st.subheader("Calls Summary")
+                                calls_display = interest_values['calls_summary'].copy()
+                                calls_display['total_interest_value'] = calls_display['total_interest_value'].apply(lambda x: f"${x:,.0f}")
+                                calls_display['total_open_interest'] = calls_display['total_open_interest'].apply(lambda x: f"{x:,}")
+                                calls_display['avg_last_price'] = calls_display['avg_last_price'].apply(lambda x: f"${x:.2f}")
+                                calls_display.columns = ['Expiry Date', 'Total Open Interest', 'Total Interest Value', 'Avg Last Price']
+                                st.table(calls_display)
+                            else:
+                                st.info("No calls data available for this ticker.")
+                        
+                        with tab2:
+                            if isinstance(interest_values['puts_summary'], pd.DataFrame) and not interest_values['puts_summary'].empty:
+                                # Create chart for puts
+                                fig_puts = go.Figure()
+                                
+                                fig_puts.add_trace(go.Bar(
+                                    x=interest_values['puts_summary']['expiry'],
+                                    y=interest_values['puts_summary']['total_interest_value'],
+                                    name='Puts Interest Value',
+                                    marker_color='red',
+                                    hovertemplate='<b>Expiry:</b> %{x}<br><b>Total Interest Value:</b> $%{y:,.0f}<extra></extra>'
+                                ))
+                                
+                                fig_puts.update_layout(
+                                    title='Puts: Open Interest × Last Price by Expiry',
+                                    xaxis_title='Expiry Date',
+                                    yaxis_title='Total Interest Value ($)',
+                                    height=400
+                                )
+                                
+                                st.plotly_chart(fig_puts, use_container_width=True)
+                                
+                                # Summary table for puts
+                                st.subheader("Puts Summary")
+                                puts_display = interest_values['puts_summary'].copy()
+                                puts_display['total_interest_value'] = puts_display['total_interest_value'].apply(lambda x: f"${x:,.0f}")
+                                puts_display['total_open_interest'] = puts_display['total_open_interest'].apply(lambda x: f"{x:,}")
+                                puts_display['avg_last_price'] = puts_display['avg_last_price'].apply(lambda x: f"${x:.2f}")
+                                puts_display.columns = ['Expiry Date', 'Total Open Interest', 'Total Interest Value', 'Avg Last Price']
+                                st.table(puts_display)
+                            else:
+                                st.info("No puts data available for this ticker.")
+                    
+                    elif analysis_type == "Detailed Options Chain":
+                        st.subheader("🔗 Detailed Options Chain")
+                        
+                        # Expiry date selector
+                        selected_expiry = st.selectbox(
+                            "Select Expiry Date",
+                            options_data['expiry_dates'],
+                            key="selected_expiry"
+                        )
+                        
+                        if selected_expiry:
+                            tab1, tab2 = st.tabs(["📞 Calls", "📉 Puts"])
+                            
+                            with tab1:
+                                if selected_expiry in interest_values['calls_detail']:
+                                    calls_detail = interest_values['calls_detail'][selected_expiry]
+                                    
+                                    # Display key columns
+                                    display_cols = ['strike', 'lastPrice', 'bid', 'ask', 'volume', 'openInterest', 'interestValue']
+                                    available_cols = [col for col in display_cols if col in calls_detail.columns]
+                                    
+                                    if available_cols:
+                                        calls_display = calls_detail[available_cols].copy()
+                                        calls_display.columns = [col.title().replace('Interest', ' Interest') for col in available_cols]
+                                        st.dataframe(calls_display, use_container_width=True)
+                                    else:
+                                        st.info("No detailed calls data available for this expiry.")
+                                else:
+                                    st.info("No calls data available for this expiry.")
+                            
+                            with tab2:
+                                if selected_expiry in interest_values['puts_detail']:
+                                    puts_detail = interest_values['puts_detail'][selected_expiry]
+                                    
+                                    # Display key columns
+                                    display_cols = ['strike', 'lastPrice', 'bid', 'ask', 'volume', 'openInterest', 'interestValue']
+                                    available_cols = [col for col in display_cols if col in puts_detail.columns]
+                                    
+                                    if available_cols:
+                                        puts_display = puts_detail[available_cols].copy()
+                                        puts_display.columns = [col.title().replace('Interest', ' Interest') for col in available_cols]
+                                        st.dataframe(puts_display, use_container_width=True)
+                                    else:
+                                        st.info("No detailed puts data available for this expiry.")
+                                else:
+                                    st.info("No puts data available for this expiry.")
+                
+                else:
+                    st.warning("⚠️ Could not calculate options interest values. The ticker may not have options data available.")
+            
+            else:
+                st.error(f"❌ No options data available for ticker '{ticker.upper()}'. This ticker may not have listed options.")
 
 # Footer
 st.markdown("---")

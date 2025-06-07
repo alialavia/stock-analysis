@@ -147,7 +147,7 @@ class StockAnalyzer:
                 
                 dividends = dividends[dividends.index >= start_date]
             
-            return dividends.to_frame(name='Dividend')
+            return pd.DataFrame({'Dividend': dividends})
             
         except Exception as e:
             st.error(f"Error fetching dividend history for {ticker}: {str(e)}")
@@ -223,3 +223,112 @@ class StockAnalyzer:
             
         except Exception:
             return False
+    
+    def get_options_data(self, ticker: str) -> Dict[str, Any]:
+        """
+        Get options data for a given ticker including all expiry dates
+        
+        Args:
+            ticker (str): Stock ticker symbol
+            
+        Returns:
+            Dict: Options data with expiry dates, calls, and puts
+        """
+        try:
+            stock = yf.Ticker(ticker)
+            options_data = {}
+            
+            # Get all expiry dates
+            expiry_dates = stock.options
+            
+            if not expiry_dates:
+                return {}
+            
+            options_data['expiry_dates'] = expiry_dates
+            options_data['calls'] = {}
+            options_data['puts'] = {}
+            
+            for expiry in expiry_dates:
+                try:
+                    opt_chain = stock.option_chain(expiry)
+                    options_data['calls'][expiry] = opt_chain.calls
+                    options_data['puts'][expiry] = opt_chain.puts
+                except Exception as e:
+                    st.warning(f"Could not fetch options data for expiry {expiry}: {str(e)}")
+                    continue
+            
+            return options_data
+            
+        except Exception as e:
+            st.error(f"Error fetching options data for {ticker}: {str(e)}")
+            return {}
+    
+    def calculate_options_interest_value(self, options_data: Dict[str, Any]) -> Dict[str, pd.DataFrame]:
+        """
+        Calculate open interest multiplied by last price for each expiry date
+        
+        Args:
+            options_data (Dict): Options data from get_options_data
+            
+        Returns:
+            Dict: DataFrames with calculated interest values for calls and puts
+        """
+        try:
+            if not options_data or 'expiry_dates' not in options_data:
+                return {}
+            
+            result = {
+                'calls_summary': [],
+                'puts_summary': [],
+                'calls_detail': {},
+                'puts_detail': {}
+            }
+            
+            for expiry in options_data['expiry_dates']:
+                if expiry in options_data['calls']:
+                    calls_df = options_data['calls'][expiry].copy()
+                    
+                    if not calls_df.empty and 'openInterest' in calls_df.columns and 'lastPrice' in calls_df.columns:
+                        # Calculate total interest value for this expiry
+                        calls_df['interestValue'] = calls_df['openInterest'] * calls_df['lastPrice']
+                        total_calls_value = calls_df['interestValue'].sum()
+                        total_calls_interest = calls_df['openInterest'].sum()
+                        
+                        result['calls_summary'].append({
+                            'expiry': expiry,
+                            'total_open_interest': total_calls_interest,
+                            'total_interest_value': total_calls_value,
+                            'avg_last_price': calls_df['lastPrice'].mean()
+                        })
+                        
+                        result['calls_detail'][expiry] = calls_df
+                
+                if expiry in options_data['puts']:
+                    puts_df = options_data['puts'][expiry].copy()
+                    
+                    if not puts_df.empty and 'openInterest' in puts_df.columns and 'lastPrice' in puts_df.columns:
+                        # Calculate total interest value for this expiry
+                        puts_df['interestValue'] = puts_df['openInterest'] * puts_df['lastPrice']
+                        total_puts_value = puts_df['interestValue'].sum()
+                        total_puts_interest = puts_df['openInterest'].sum()
+                        
+                        result['puts_summary'].append({
+                            'expiry': expiry,
+                            'total_open_interest': total_puts_interest,
+                            'total_interest_value': total_puts_value,
+                            'avg_last_price': puts_df['lastPrice'].mean()
+                        })
+                        
+                        result['puts_detail'][expiry] = puts_df
+            
+            # Convert summaries to DataFrames
+            if result['calls_summary']:
+                result['calls_summary'] = pd.DataFrame(result['calls_summary'])
+            if result['puts_summary']:
+                result['puts_summary'] = pd.DataFrame(result['puts_summary'])
+            
+            return result
+            
+        except Exception as e:
+            st.error(f"Error calculating options interest values: {str(e)}")
+            return {}
