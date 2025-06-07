@@ -463,7 +463,18 @@ elif page == "Options Analysis":
                                     name='Calls Interest Value',
                                     line=dict(color='green', width=3),
                                     marker=dict(size=8, color='green'),
-                                    hovertemplate='<b>Expiry:</b> %{x}<br><b>Total Interest Value:</b> $%{y:,.0f}<extra></extra>'
+                                    customdata=list(zip(
+                                        interest_values['calls_summary']['total_open_interest'],
+                                        interest_values['calls_summary']['avg_last_price'],
+                                        interest_values['calls_summary']['total_volume'],
+                                        interest_values['calls_summary']['avg_volume']
+                                    )),
+                                    hovertemplate='<b>Expiry:</b> %{x}<br>' +
+                                                '<b>Total Interest Value:</b> $%{y:,.0f}<br>' +
+                                                '<b>Total Open Interest:</b> %{customdata[0]:,}<br>' +
+                                                '<b>Avg Last Price:</b> $%{customdata[1]:.2f}<br>' +
+                                                '<b>Total Volume:</b> %{customdata[2]:,}<br>' +
+                                                '<b>Avg Volume:</b> %{customdata[3]:,.0f}<extra></extra>'
                                 ))
                                 
                                 # Add reference line for average to help identify anomalies
@@ -508,7 +519,18 @@ elif page == "Options Analysis":
                                     name='Puts Interest Value',
                                     line=dict(color='red', width=3),
                                     marker=dict(size=8, color='red'),
-                                    hovertemplate='<b>Expiry:</b> %{x}<br><b>Total Interest Value:</b> $%{y:,.0f}<extra></extra>'
+                                    customdata=list(zip(
+                                        interest_values['puts_summary']['total_open_interest'],
+                                        interest_values['puts_summary']['avg_last_price'],
+                                        interest_values['puts_summary']['total_volume'],
+                                        interest_values['puts_summary']['avg_volume']
+                                    )),
+                                    hovertemplate='<b>Expiry:</b> %{x}<br>' +
+                                                '<b>Total Interest Value:</b> $%{y:,.0f}<br>' +
+                                                '<b>Total Open Interest:</b> %{customdata[0]:,}<br>' +
+                                                '<b>Avg Last Price:</b> $%{customdata[1]:.2f}<br>' +
+                                                '<b>Total Volume:</b> %{customdata[2]:,}<br>' +
+                                                '<b>Avg Volume:</b> %{customdata[3]:,.0f}<extra></extra>'
                                 ))
                                 
                                 # Add reference line for average to help identify anomalies
