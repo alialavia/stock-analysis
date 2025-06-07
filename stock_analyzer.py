@@ -107,7 +107,7 @@ class StockAnalyzer:
                 return None
                 
             # Forward fill missing values
-            comparison_data = comparison_data.fillna(method='ffill')
+            comparison_data = comparison_data.ffill()
             
             return comparison_data
             

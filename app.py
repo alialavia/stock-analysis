@@ -453,22 +453,34 @@ elif page == "Options Analysis":
                         
                         with tab1:
                             if isinstance(interest_values['calls_summary'], pd.DataFrame) and not interest_values['calls_summary'].empty:
-                                # Create chart for calls
+                                # Create line chart for calls to better show anomalies
                                 fig_calls = go.Figure()
                                 
-                                fig_calls.add_trace(go.Bar(
+                                fig_calls.add_trace(go.Scatter(
                                     x=interest_values['calls_summary']['expiry'],
                                     y=interest_values['calls_summary']['total_interest_value'],
+                                    mode='lines+markers',
                                     name='Calls Interest Value',
-                                    marker_color='green',
+                                    line=dict(color='green', width=3),
+                                    marker=dict(size=8, color='green'),
                                     hovertemplate='<b>Expiry:</b> %{x}<br><b>Total Interest Value:</b> $%{y:,.0f}<extra></extra>'
                                 ))
                                 
+                                # Add reference line for average to help identify anomalies
+                                avg_value = interest_values['calls_summary']['total_interest_value'].mean()
+                                fig_calls.add_hline(
+                                    y=avg_value,
+                                    line_dash="dash",
+                                    line_color="gray",
+                                    annotation_text=f"Average: ${avg_value:,.0f}"
+                                )
+                                
                                 fig_calls.update_layout(
-                                    title='Calls: Open Interest × Last Price by Expiry',
+                                    title='Calls: Open Interest × Last Price by Expiry (Line shows anomalies better)',
                                     xaxis_title='Expiry Date',
                                     yaxis_title='Total Interest Value ($)',
-                                    height=400
+                                    height=400,
+                                    showlegend=True
                                 )
                                 
                                 st.plotly_chart(fig_calls, use_container_width=True)
@@ -486,22 +498,34 @@ elif page == "Options Analysis":
                         
                         with tab2:
                             if isinstance(interest_values['puts_summary'], pd.DataFrame) and not interest_values['puts_summary'].empty:
-                                # Create chart for puts
+                                # Create line chart for puts to better show anomalies
                                 fig_puts = go.Figure()
                                 
-                                fig_puts.add_trace(go.Bar(
+                                fig_puts.add_trace(go.Scatter(
                                     x=interest_values['puts_summary']['expiry'],
                                     y=interest_values['puts_summary']['total_interest_value'],
+                                    mode='lines+markers',
                                     name='Puts Interest Value',
-                                    marker_color='red',
+                                    line=dict(color='red', width=3),
+                                    marker=dict(size=8, color='red'),
                                     hovertemplate='<b>Expiry:</b> %{x}<br><b>Total Interest Value:</b> $%{y:,.0f}<extra></extra>'
                                 ))
                                 
+                                # Add reference line for average to help identify anomalies
+                                avg_value = interest_values['puts_summary']['total_interest_value'].mean()
+                                fig_puts.add_hline(
+                                    y=avg_value,
+                                    line_dash="dash",
+                                    line_color="gray",
+                                    annotation_text=f"Average: ${avg_value:,.0f}"
+                                )
+                                
                                 fig_puts.update_layout(
-                                    title='Puts: Open Interest × Last Price by Expiry',
+                                    title='Puts: Open Interest × Last Price by Expiry (Line shows anomalies better)',
                                     xaxis_title='Expiry Date',
                                     yaxis_title='Total Interest Value ($)',
-                                    height=400
+                                    height=400,
+                                    showlegend=True
                                 )
                                 
                                 st.plotly_chart(fig_puts, use_container_width=True)
