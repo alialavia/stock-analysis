@@ -20,7 +20,7 @@ if 'tech_analysis' not in st.session_state:
 # Main title
 st.title("📈 Stock Analysis Dashboard")
 st.markdown("---")
-
+st.markdown("Navigate using the links in the side bar.")
 # Footer
 st.markdown("---")
 st.markdown(

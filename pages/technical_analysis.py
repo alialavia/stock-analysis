@@ -2,7 +2,14 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from stock_analyzer import StockAnalyzer
+from technical_analysis import TechnicalAnalysis
 
+if 'analyzer' not in st.session_state:
+    st.session_state.analyzer = StockAnalyzer()
+
+if 'tech_analysis' not in st.session_state:
+    st.session_state.tech_analysis = TechnicalAnalysis()
 
 def render_technical_analysis_page():
     st.header("🔬 Technical Analysis")

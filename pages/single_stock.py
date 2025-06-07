@@ -1,6 +1,14 @@
 import streamlit as st
 import pandas as pd
 from utils import display_stock_info, create_price_chart, create_volume_chart
+from stock_analyzer import StockAnalyzer
+from technical_analysis import TechnicalAnalysis
+
+if 'analyzer' not in st.session_state:
+    st.session_state.analyzer = StockAnalyzer()
+
+if 'tech_analysis' not in st.session_state:
+    st.session_state.tech_analysis = TechnicalAnalysis()
 
 def render_single_stock_page():
     st.header("🔍 Single Stock Analysis")
